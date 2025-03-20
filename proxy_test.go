@@ -1,4 +1,4 @@
-package gostrip
+package gosplit
 
 import (
 	"context"

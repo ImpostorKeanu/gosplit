@@ -1,4 +1,4 @@
-package gostrip
+package gosplit
 
 import (
 	"bufio"
@@ -201,6 +201,8 @@ func (c *proxyConn) handle(ctx context.Context) {
 		cfg:      c.cfg,
 		connInfo: ConnInfo{vA, *c.proxyAddr, dA},
 	}
+
+	c.log(DebugLogLvl, "new connection established")
 
 	//=================================
 	// COPY TRAFFIC BETWEEN CONNECTIONS
