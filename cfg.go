@@ -85,29 +85,31 @@ type (
 	LogRecord struct {
 		Level    string `json:"level"`
 		Msg      string `json:"msg"`
-		ConnInfo `json:",inline,omitempty"`
+		ConnInfo `json:"connInfo,inline,omitempty"`
 	}
 
 	// ConnInfo adds connection information to LogRecord.
 	ConnInfo struct {
-		VictimAddr
-		ProxyAddr
-		DownstreamAddr
+		VictimAddr     `json:"victim,omitempty"`
+		ProxyAddr      `json:"proxy,omitempty"`
+		DownstreamAddr `json:"downstream,omitempty"`
+	}
+
+	Addr struct {
+		IP   string `json:"ip,omitempty"`
+		Port string `json:"port,omitempty"`
 	}
 
 	VictimAddr struct {
-		VictimIP   string `json:"victimIp,omitempty"`
-		VictimPort string `json:"victimPort,omitempty"`
+		Addr `json:",inline,omitempty"`
 	}
 
 	ProxyAddr struct {
-		ProxyIP   string `json:"proxyIp,omitempty"`
-		ProxyPort string `json:"proxyPort,omitempty"`
+		Addr `json:",inline,omitempty"`
 	}
 
 	DownstreamAddr struct {
-		DownstreamIP   string `json:"downstreamIp,omitempty"`
-		DownstreamPort string `json:"downstreamPort,omitempty"`
+		Addr `json:",inline,omitempty"`
 	}
 
 	// cfg embeds Cfg, giving us standardized calls to log events

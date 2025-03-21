@@ -169,7 +169,7 @@ func (c *proxyConn) handle(ctx context.Context) {
 
 	// request the downstream
 	var dA DownstreamAddr
-	if dA.DownstreamIP, dA.DownstreamPort, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
+	if dA.IP, dA.Port, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
 		c.log(ErrorLogLvl, "no aitm downstream for connection")
 		cancel()
 		return
@@ -177,7 +177,7 @@ func (c *proxyConn) handle(ctx context.Context) {
 	c.downstreamAddr = &dA
 
 	// connect to the downstream
-	if uC, err := net.Dial("tcp4", net.JoinHostPort(dA.DownstreamIP, dA.DownstreamPort)); err != nil {
+	if uC, err := net.Dial("tcp4", net.JoinHostPort(dA.IP, dA.Port)); err != nil {
 		c.log(ErrorLogLvl, "error connecting to downstream")
 		cancel()
 		return

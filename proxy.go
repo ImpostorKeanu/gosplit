@@ -57,7 +57,7 @@ func (s *ProxyServer) Serve(ctx context.Context) (err error) {
 		l = &proxyListener{Listener: x, cfg: cfg{Cfg: s.cfg}}
 	}
 
-	pA := ProxyAddr{pIP, pPort}
+	pA := ProxyAddr{Addr: Addr{IP: pIP, Port: pPort}}
 
 	s.log(InfoLogLvl, "starting proxy server", pA, nil)
 

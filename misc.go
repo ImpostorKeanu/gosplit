@@ -23,7 +23,7 @@ func isHandshake(buf []byte) bool {
 }
 
 func getVictimAddr(c net.Conn) (vA VictimAddr, err error) {
-	if vA.VictimIP, vA.VictimPort, err = net.SplitHostPort(c.RemoteAddr().String()); err != nil {
+	if vA.IP, vA.Port, err = net.SplitHostPort(c.RemoteAddr().String()); err != nil {
 		err = fmt.Errorf("error parsing victim address information: %w", err)
 	}
 	return
