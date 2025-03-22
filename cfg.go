@@ -98,6 +98,9 @@ type (
 		DownstreamAddr `json:"downstream,omitempty"`
 	}
 
+	// Addr provides IP and Port fields for VictimAddr,
+	// ProxyAddr, and DownstreamAddr, which are reflected
+	// in ConnInfo instances.
 	Addr struct {
 		IP   string `json:"ip,omitempty"`
 		Port string `json:"port,omitempty"`
@@ -123,6 +126,7 @@ type (
 	}
 )
 
+// log sends log records to the server's cfg.
 func (c cfg) log(conn *proxyConn, lvl, msg string) {
 	if lr, ok := c.Cfg.(LogReceiver); ok {
 		var cI ConnInfo
@@ -131,6 +135,8 @@ func (c cfg) log(conn *proxyConn, lvl, msg string) {
 	}
 }
 
+// connStart increments the connection counter and notifies the server's
+// cfg that a connection has started.
 func (c cfg) connStart(conn *proxyConn) {
 	conn.s.connCount.Add(1)
 	if cir, ok := c.Cfg.(ConnInfoReceiver); ok {
@@ -138,6 +144,8 @@ func (c cfg) connStart(conn *proxyConn) {
 	}
 }
 
+// connEnd decrements the connection counter and notifies the server's
+// cfg that a connection has ended.
 func (c cfg) connEnd(conn *proxyConn) {
 	conn.s.connCount.Add(-1)
 	if cir, ok := c.Cfg.(ConnInfoReceiver); ok {
