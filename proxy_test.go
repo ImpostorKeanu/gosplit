@@ -68,11 +68,11 @@ func (c Config) RecvLog(fields LogRecord) {
 	println(string(b))
 }
 
-func (c Config) HandleVictimData(b []byte, _ ConnInfo) {
+func (c Config) RecvVictimData(b []byte, _ ConnInfo) {
 	println("victim data", "--->", string(b))
 }
 
-func (c Config) HandleDownstreamData(b []byte, _ ConnInfo) {
+func (c Config) RecvDownstreamData(b []byte, _ ConnInfo) {
 	println("victim data", "--->", string(b))
 }
 

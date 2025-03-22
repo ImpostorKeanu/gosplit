@@ -29,7 +29,7 @@ type (
 		buf *bufio.Reader
 	}
 
-	// dataHandlerConn determines if cfg implements DataHandler and passes
+	// dataHandlerConn determines if cfg implements DataReceiver and passes
 	// data to the method when it does, allowing implementors to receive
 	// cleartext data passing through the proxy.
 	dataHandlerConn struct {
@@ -43,8 +43,8 @@ type (
 //
 // Note: This is the victim side of the intercepted connection.
 func (c *dataHandlerConn) Write(b []byte) (n int, err error) {
-	if dh, ok := c.cfg.Cfg.(DataHandler); ok {
-		go dh.HandleVictimData(b, c.connInfo)
+	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
+		go dh.RecvVictimData(b, c.connInfo)
 	}
 	return c.Conn.Write(b)
 }
@@ -54,8 +54,8 @@ func (c *dataHandlerConn) Write(b []byte) (n int, err error) {
 // Note: This is the downstream side of the intercepted connection.
 func (c *dataHandlerConn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
-	if dh, ok := c.cfg.Cfg.(DataHandler); ok {
-		go dh.HandleDownstreamData(b[0:n], c.connInfo)
+	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
+		go dh.RecvDownstreamData(b[0:n], c.connInfo)
 	}
 	return
 }

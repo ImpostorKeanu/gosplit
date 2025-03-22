@@ -5,9 +5,12 @@ import (
 )
 
 const (
-	InfoLogLvl  = "info"
-	ErrorLogLvl = "error"
-	DebugLogLvl = "debug"
+	InfoLogLvl           = "info"
+	ErrorLogLvl          = "error"
+	DebugLogLvl          = "debug"
+	DataLogLvl           = "data"
+	VictimDataSender     = "victim"
+	DownstreamDataSender = "downstream"
 )
 
 type (
@@ -70,15 +73,15 @@ type (
 		GetHandshakeLen() int
 	}
 
-	// DataHandler allows implementors to receive cleartext data
+	// DataReceiver allows implementors to receive cleartext data
 	// passing through the proxy.
-	DataHandler interface {
-		// HandleVictimData handles victim data as it passes through
+	DataReceiver interface {
+		// RecvVictimData handles victim data as it passes through
 		// the proxy.
-		HandleVictimData([]byte, ConnInfo)
-		// HandleDownstreamData handles data returned
+		RecvVictimData([]byte, ConnInfo)
+		// RecvDownstreamData handles data returned
 		// from downstream servers.
-		HandleDownstreamData([]byte, ConnInfo)
+		RecvDownstreamData([]byte, ConnInfo)
 	}
 
 	// LogRecord is a standard set of fields that are send to Cfg.RecvLog.
