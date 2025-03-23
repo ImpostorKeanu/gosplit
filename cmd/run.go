@@ -14,51 +14,9 @@ import (
 var (
 	runCmd = &cobra.Command{
 		Use:   "run",
-		Short: "Run a split proxy",
-		Long:  "Run a split proxy",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg := config{
-				logWriter:        io.Discard,
-				dataWriter:       io.Discard,
-				nssWriter:        io.Discard,
-				dataToLog:        dataToLog,
-				downstreamTlsCfg: &tls.Config{InsecureSkipVerify: true},
-			}
-
-			if t, err := tls.LoadX509KeyPair(pemCertFile, pemKeyFile); err != nil {
-				panic(err)
-			} else {
-				cfg.proxyCrt = &t
-			}
-
-			var err error
-			if err = dstOpenFile(&cfg.logWriter, logFile, true); err != nil {
-				panic(err)
-			}
-			cfg.logWriter = &teeWriter{cfg.logWriter}
-
-			if err = dstOpenFile(&cfg.dataWriter, dataLogFile, true); err != nil {
-				panic(err)
-			}
-
-			if err = dstOpenFile(&cfg.nssWriter, nssFile, false); err != nil {
-				panic(err)
-			}
-			if cfg.nssWriter != io.Discard {
-				cfg.downstreamTlsCfg.KeyLogWriter = cfg.nssWriter
-			}
-
-			if cfg.proxyAddr, cfg.proxyPort, err = net.SplitHostPort(listenAddr); err != nil {
-				panic(err)
-			} else if cfg.downstreamAddr, cfg.downstreamPort, err = net.SplitHostPort(downstreamAddr); err != nil {
-				panic(err)
-			}
-
-			fmt.Printf("Starting server on %s\n", listenAddr)
-			if err = gosplit.NewProxyServer(cfg).Serve(context.Background()); err != nil {
-				panic(err)
-			}
-		},
+		Short: "Run a split server",
+		Long:  "Run a split server",
+		Run:   runServer,
 	}
 
 	listenAddr     string // socket where the proxy will listen
@@ -67,6 +25,15 @@ var (
 	dataLogFile    string // log file dedicated to extracted data
 	dataToLog      bool   // log data to logFile instead of dataLogFile
 	nssFile        string // file to receive nss keys to decrypt packet captures
+)
+
+type (
+	teeWriter struct {
+		io.Writer
+	}
+	newlineWriter struct {
+		io.Writer
+	}
 )
 
 func init() {
@@ -82,12 +49,8 @@ func init() {
 		"Results in data being sent to the log file instead of --data-log-file")
 	runCmd.PersistentFlags().StringVarP(&nssFile, "nss-key-log-file", "n", "",
 		"File to receive Network Security Services key log file for Wireshark")
-
-	if err := runCmd.MarkPersistentFlagRequired("listen-addr"); err != nil {
-		panic(err)
-	} else if err = runCmd.MarkPersistentFlagRequired("downstream-addr"); err != nil {
-		panic(err)
-	}
+	prExit(flagRequiredMsg, runCmd.MarkPersistentFlagRequired("listen-addr"))
+	prExit(flagRequiredMsg, runCmd.MarkPersistentFlagRequired("downstream-addr"))
 }
 
 func openFile(n string) (*os.File, error) {
@@ -107,15 +70,6 @@ func dstOpenFile(dst *io.Writer, n string, newline bool) error {
 	return err
 }
 
-type (
-	teeWriter struct {
-		io.Writer
-	}
-	newlineWriter struct {
-		io.Writer
-	}
-)
-
 func (w *teeWriter) Write(p []byte) (n int, err error) {
 	fmt.Println(string(p))
 	return w.Writer.Write(p)
@@ -124,4 +78,61 @@ func (w *teeWriter) Write(p []byte) (n int, err error) {
 func (w *newlineWriter) Write(p []byte) (n int, err error) {
 	p = append(p, '\n')
 	return w.Writer.Write(p)
+}
+
+func runServer(cmd *cobra.Command, args []string) {
+
+	// initialize the config
+	// - any writers not configured send output to io.Discard
+	// - KeyLogWriter for downstream tls nss is configured later
+	cfg := config{
+		logWriter:        io.Discard,
+		dataWriter:       io.Discard,
+		nssWriter:        io.Discard,
+		dataToLog:        dataToLog,
+		downstreamTlsCfg: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	//=================================
+	// PREPARE SERVER TLS AND ADDRESSES
+	//=================================
+
+	t, err := tls.LoadX509KeyPair(pemCertFile, pemKeyFile)
+	prExit("error while loading x509 keypair", err)
+	cfg.proxyCrt = &t
+
+	cfg.proxyAddr, cfg.proxyPort, err = net.SplitHostPort(listenAddr)
+	prExit("error while parsing --listen-addr", err)
+
+	cfg.downstreamAddr, cfg.downstreamPort, err = net.SplitHostPort(downstreamAddr)
+	prExit("error while parsing --downstream-addr", err)
+
+	//=====================
+	// PREPARE OUTPUT FILES
+	//=====================
+
+	err = dstOpenFile(&cfg.logWriter, logFile, true)
+	prExit("error while opening log file for writing", err)
+
+	// tee records destined to the log file to stdout
+	cfg.logWriter = &teeWriter{cfg.logWriter}
+
+	err = dstOpenFile(&cfg.dataWriter, dataLogFile, true)
+	prExit("error while data file for writing", err)
+
+	err = dstOpenFile(&cfg.nssWriter, nssFile, false)
+	prExit("error while opening nss key file file for writing", err)
+
+	if cfg.nssWriter != io.Discard {
+		// send nss records to log file
+		cfg.downstreamTlsCfg.KeyLogWriter = cfg.nssWriter
+	}
+
+	//===============
+	// RUN THE SERVER
+	//===============
+
+	fmt.Printf("Starting server on %s\n", listenAddr)
+	err = gosplit.NewProxyServer(cfg).Serve(context.Background())
+	prExit("error running the proxy server", err)
 }
