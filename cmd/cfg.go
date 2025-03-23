@@ -10,17 +10,19 @@ import (
 )
 
 type (
+
+	// config implements gs.Cfg.
 	config struct {
-		proxyAddr        string
-		proxyPort        string
-		downstreamAddr   string
-		downstreamPort   string
-		dataToLog        bool
-		logWriter        io.Writer
-		dataWriter       io.Writer
-		nssWriter        io.Writer
-		proxyCrt         *tls.Certificate
-		downstreamTlsCfg *tls.Config
+		proxyIP          string           // local ip the proxy server will bind to
+		proxyPort        string           // local port the proxy server will bind to
+		downstreamIP     string           // downstream ip the proxy server connects to
+		downstreamPort   string           // downstream port the proxy server connects to
+		dataToLog        bool             // send data events to logWriter AND dataWriter
+		logWriter        io.Writer        // writer for logs
+		dataWriter       io.Writer        // writer for data
+		nssWriter        io.Writer        // key log writer for tls dissection
+		proxyCrt         *tls.Certificate // certificate presented by the proxy server
+		downstreamTlsCfg *tls.Config      // tls config used to connect to the downstream
 	}
 
 	dataLog struct {
@@ -32,6 +34,8 @@ type (
 )
 
 func (c config) GetProxyTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr) (*tls.Config, error) {
+	// TODO enhance this method to generate the certificate dynamically
+	//  - generated certificates should be cached for reuse
 	if c.proxyCrt == nil {
 		return nil, errors.New("proxyCrt is nil")
 	}
@@ -40,7 +44,7 @@ func (c config) GetProxyTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr) (*tls.Config,
 }
 
 func (c config) GetProxyAddr() (ip string, port string, err error) {
-	return c.proxyAddr, c.proxyPort, nil
+	return c.proxyIP, c.proxyPort, nil
 }
 
 func (c config) GetDownstreamTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr) (*tls.Config, error) {
@@ -48,7 +52,7 @@ func (c config) GetDownstreamTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr) (*tls.Co
 }
 
 func (c config) GetDownstreamAddr(_ gs.ProxyAddr, _ gs.VictimAddr) (ip string, port string, err error) {
-	return c.downstreamAddr, c.downstreamPort, nil
+	return c.downstreamIP, c.downstreamPort, nil
 }
 
 func (c config) RecvLog(fields gs.LogRecord) {
@@ -74,6 +78,8 @@ func (c config) RecvDownstreamData(b []byte, cI gs.ConnInfo) {
 	c.writeDataLog(gs.DownstreamDataSender, b, cI)
 }
 
+// writeDataLog writes data extracted through proxying to dataWriter and
+// optionally the logWriter.
 func (c config) writeDataLog(sender string, b []byte, cI gs.ConnInfo) {
 
 	// construct the dataLog
@@ -99,4 +105,10 @@ func (c config) writeDataLog(sender string, b []byte, cI gs.ConnInfo) {
 			println("error writing data log record: ", err.Error())
 		}
 	}
+}
+
+func (c *config) closeWriters() {
+	closeWriter(c.logWriter)
+	closeWriter(c.dataWriter)
+	closeWriter(c.nssWriter)
 }

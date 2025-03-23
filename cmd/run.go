@@ -49,8 +49,8 @@ func init() {
 		"Results in data being sent to the log file instead of --data-log-file")
 	runCmd.PersistentFlags().StringVarP(&nssFile, "nss-key-log-file", "n", "",
 		"File to receive Network Security Services key log file for Wireshark")
-	prExit(flagRequiredMsg, runCmd.MarkPersistentFlagRequired("listen-addr"))
-	prExit(flagRequiredMsg, runCmd.MarkPersistentFlagRequired("downstream-addr"))
+	prExit(runCmd.MarkPersistentFlagRequired("listen-addr"), flagRequiredMsg)
+	prExit(runCmd.MarkPersistentFlagRequired("downstream-addr"), flagRequiredMsg)
 }
 
 func openFile(n string) (*os.File, error) {
@@ -98,30 +98,30 @@ func runServer(cmd *cobra.Command, args []string) {
 	//=================================
 
 	t, err := tls.LoadX509KeyPair(pemCertFile, pemKeyFile)
-	prExit("error while loading x509 keypair", err)
+	prExit(err, "error while loading x509 keypair")
 	cfg.proxyCrt = &t
 
-	cfg.proxyAddr, cfg.proxyPort, err = net.SplitHostPort(listenAddr)
-	prExit("error while parsing --listen-addr", err)
+	cfg.proxyIP, cfg.proxyPort, err = net.SplitHostPort(listenAddr)
+	prExit(err, "error while parsing --listen-addr")
 
-	cfg.downstreamAddr, cfg.downstreamPort, err = net.SplitHostPort(downstreamAddr)
-	prExit("error while parsing --downstream-addr", err)
+	cfg.downstreamIP, cfg.downstreamPort, err = net.SplitHostPort(downstreamAddr)
+	prExit(err, "error while parsing --downstream-addr")
 
 	//=====================
 	// PREPARE OUTPUT FILES
 	//=====================
 
 	err = dstOpenFile(&cfg.logWriter, logFile, true)
-	prExit("error while opening log file for writing", err)
+	prExit(err, "error while opening log file for writing")
 
 	// tee records destined to the log file to stdout
 	cfg.logWriter = &teeWriter{cfg.logWriter}
 
 	err = dstOpenFile(&cfg.dataWriter, dataLogFile, true)
-	prExit("error while data file for writing", err)
+	prExit(err, "error while data file for writing")
 
 	err = dstOpenFile(&cfg.nssWriter, nssFile, false)
-	prExit("error while opening nss key file file for writing", err)
+	prExit(err, "error while opening nss key file file for writing")
 
 	if cfg.nssWriter != io.Discard {
 		// send nss records to log file
@@ -134,5 +134,6 @@ func runServer(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("Starting server on %s\n", listenAddr)
 	err = gosplit.NewProxyServer(cfg).Serve(context.Background())
-	prExit("error running the proxy server", err)
+
+	prExit(err, "error running the proxy server")
 }
