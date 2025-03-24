@@ -21,7 +21,8 @@ GoSplit checks the bytes of each initial client TCP segment to determine
 if the connection should be upgraded to TLS. Data extracted from
 connections are base64 encoded and logged to disk in [JSONL format][jsonl].
 
-The following sequence diagram roughly demonstrates this process.
+The following sequence diagram roughly illustrates the connection splitting
+process.
 
 [jsonl]: https://jsonlines.org/
 
