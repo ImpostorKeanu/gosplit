@@ -1,4 +1,4 @@
-GoStrip is a simple TLS-aware TCP proxy that can be used
+GoSplit is a simple TLS-aware TCP proxy that can be used
 to extract cleartext data from a TLS tunnels.
 
 # Limitations
