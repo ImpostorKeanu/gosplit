@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 )
 
 type (
@@ -197,9 +198,14 @@ func (c *proxyConn) handle(ctx context.Context) {
 	}
 
 	c.downstream = &dataHandlerConn{
-		Conn:     c.downstream,
-		cfg:      c.cfg,
-		connInfo: ConnInfo{vA, *c.proxyAddr, dA},
+		Conn: c.downstream,
+		cfg:  c.cfg,
+		connInfo: ConnInfo{
+			Time:           time.Now(),
+			VictimAddr:     vA,
+			ProxyAddr:      *c.proxyAddr,
+			DownstreamAddr: dA,
+		},
 	}
 
 	c.log(DebugLogLvl, "new connection established")

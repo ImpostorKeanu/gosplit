@@ -14,7 +14,7 @@ const (
 // with a status code of 1
 func prExit(err error, msg string) {
 	if err != nil {
-		println(fmt.Sprintf("%s:", msg), err)
+		println(fmt.Sprintf("%s:", msg), err.Error())
 		os.Exit(1)
 	}
 }

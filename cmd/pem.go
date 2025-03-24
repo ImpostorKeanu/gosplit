@@ -13,12 +13,15 @@ import (
 var (
 	pemCmd = &cobra.Command{
 		Use:   "pem",
-		Short: "Generate pem certificate and private key and write to disk.",
-		Long: "Generate pem certificate and private key and write to disk. This command is currently " +
-		  "primitive in terms of configurable fields. Seek an alternative tool if a more refined certificate is " +
-		  "needed.",
-		Example: "gosplit pem --pem-cert-file rando-crt.pem --pem-key-file rando-key.pem " +
-		  "--org-name \"Rando Org\" -i 192.168.1.5 -i 192.168.1.6 -s RandoName1 -s RandoName2",
+		Short: "Generate a pem certificate",
+		Long: "Generate a pem certificate and write to disk. This command is currently\n" +
+		  "primitive in terms of configurable fields. Seek an alternative tool if a\n" +
+		  "more refined certificate is needed.",
+		Example: "gosplit pem\n  " +
+		  "--pem-cert-file rando-crt.pem --pem-key-file rando-key.pem\n  " +
+		  "--org-name \"Rando Org\"\n  " +
+		  "-i 192.168.1.5 -i 192.168.1.6\n  " +
+		  "-s RandoName1 -s RandoName2",
 		Run: runPem,
 	}
 	pemOrgName string
@@ -27,19 +30,20 @@ var (
 )
 
 func init() {
-	pemCmd.Flags().StringVarP(&pemOrgName, "org-name", "n", "", "Organization name")
-	pemCmd.Flags().StringSliceVarP(&pemIps, "ips", "i", []string{}, "IP addresses")
-	pemCmd.Flags().StringSliceVarP(&pemNames, "names", "s", []string{}, "DNS names")
-	prExit(pemCmd.MarkFlagRequired("org-name"), flagRequiredMsg)
-	prExit(pemCmd.MarkFlagRequired("ips"), flagRequiredMsg)
-	prExit(pemCmd.MarkFlagRequired("names"), flagRequiredMsg)
+	pemCmd.Flags().StringVarP(&pemOrgName, "org-name", "n", "GoSplit", "Organization name for the cert")
+	pemCmd.Flags().StringSliceVarP(&pemIps, "ips", "i", []string{"127.0.0.1"}, "IP addresses for the cert")
+	pemCmd.Flags().StringSliceVarP(&pemNames, "names", "s", []string{"gosplit"}, "DNS names for the cert")
 }
 
 func runPem(_ *cobra.Command, _ []string) {
 	var ips []net.IP
 	for _, i := range pemIps {
 		ip := net.ParseIP(i)
-		prExit(errors.New("failed to parse supplied ip address"), fmt.Sprintf("bad ip address (%s)", i))
+		if ip == nil {
+			prExit(
+				errors.New("failed to parse supplied ip address"),
+				fmt.Sprintf("bad ip address (%s)", i))
+		}
 		ips = append(ips, ip)
 	}
 

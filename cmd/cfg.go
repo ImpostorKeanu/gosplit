@@ -9,6 +9,11 @@ import (
 	"io"
 )
 
+const (
+	victimDataSender     = "victim"
+	downstreamDataSender = "downstream"
+)
+
 type (
 
 	// config implements gs.Cfg.
@@ -68,14 +73,14 @@ func (c config) RecvVictimData(b []byte, cI gs.ConnInfo) {
 	if c.dataWriter == nil {
 		return
 	}
-	c.writeDataLog(gs.VictimDataSender, b, cI)
+	c.writeDataLog(victimDataSender, b, cI)
 }
 
 func (c config) RecvDownstreamData(b []byte, cI gs.ConnInfo) {
 	if c.dataWriter == nil {
 		return
 	}
-	c.writeDataLog(gs.DownstreamDataSender, b, cI)
+	c.writeDataLog(downstreamDataSender, b, cI)
 }
 
 // writeDataLog writes data extracted through proxying to dataWriter and

@@ -2,15 +2,14 @@ package gosplit
 
 import (
 	"crypto/tls"
+	"time"
 )
 
 const (
-	InfoLogLvl           = "info"
-	ErrorLogLvl          = "error"
-	DebugLogLvl          = "debug"
-	DataLogLvl           = "data"
-	VictimDataSender     = "victim"
-	DownstreamDataSender = "downstream"
+	InfoLogLvl  = "info"
+	ErrorLogLvl = "error"
+	DebugLogLvl = "debug"
+	DataLogLvl  = "data"
 )
 
 type (
@@ -18,8 +17,13 @@ type (
 	// Cfg establishes methods used by ProxyServer to run and handle
 	// connections.
 	//
-	// Implementors that also implement Handshaker allow for customization
-	// of the TLS fingerprinting method.
+	// Cfg type functionality can be extended by implementing the
+	// following interfaces:
+	//
+	// - Handshaker to customize TLS fingerprinting
+	// - ConnInfoReceiver to receive notifications on when connections are started/ended
+	// - LogReceiver to handle LogRecord events
+	// - DataReceiver to handle data captured while dissecting connections
 	Cfg interface {
 		// GetProxyAddr allows implementors to determine the listening
 		// IP and port for the proxy side of the connection, which is
@@ -93,6 +97,7 @@ type (
 
 	// ConnInfo adds connection information to LogRecord.
 	ConnInfo struct {
+		Time           time.Time `json:"time"`
 		VictimAddr     `json:"victim,omitempty"`
 		ProxyAddr      `json:"proxy,omitempty"`
 		DownstreamAddr `json:"downstream,omitempty"`
@@ -155,6 +160,9 @@ func (c cfg) connEnd(conn *proxyConn) {
 
 // fill cI with information from the config and connection.
 func (cI *ConnInfo) fill(p *proxyConn) {
+	if cI.Time.IsZero() {
+		cI.Time = time.Now()
+	}
 	if p.proxyAddr != nil {
 		cI.ProxyAddr = *p.proxyAddr
 	}

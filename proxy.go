@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"sync/atomic"
+	"time"
 )
 
 type (
@@ -100,6 +101,7 @@ ctrl:
 func (s *ProxyServer) log(lvl, msg string, pA ProxyAddr, vA *VictimAddr) {
 	if lr, ok := s.cfg.(LogReceiver); ok {
 		cI := ConnInfo{
+			Time:      time.Now(),
 			ProxyAddr: pA,
 		}
 		if vA != nil {
