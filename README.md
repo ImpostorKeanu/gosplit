@@ -1,6 +1,12 @@
 GoSplit is a simple TLS-aware TCP proxy that can be used
 to extract cleartext data from TLS tunnels.
 
+# Quick Usage
+
+1. Download a binary from the releases page.
+2. Generate a PEM using the `pem` subcommand.
+3. Start the proxy.
+
 # Warning (Intended Use)
 
 This project was developed for security research purposes (like

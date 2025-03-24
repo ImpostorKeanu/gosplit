@@ -14,9 +14,13 @@ import (
 var (
 	runCmd = &cobra.Command{
 		Use:   "run",
-		Short: "Run a split server",
-		Long:  "Run a split server",
+		Short: "Run a TLS aware TCP proxy server",
+		Long:  "Run a TLS aware TCP proxy server",
 		Run:   runServer,
+		Example: `
+gosplit run --listen-addr 192.168.1.2:10000 --downstream-addr 192.168.1.3:10000 \
+  --cert-file crt.pem --key-file key.pem \
+  --log-file /tmp/logs.json --nss-key-log-file /tmp/key-log.nss --data-log-file /tmp/data.json`,
 	}
 
 	listenAddr     string // socket where the proxy will listen

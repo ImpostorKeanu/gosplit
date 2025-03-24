@@ -17,11 +17,11 @@ var (
 		Long: "Generate a pem certificate and write to disk. This command is currently\n" +
 		  "primitive in terms of configurable fields. Seek an alternative tool if a\n" +
 		  "more refined certificate is needed.",
-		Example: "gosplit pem\n  " +
-		  "--pem-cert-file rando-crt.pem --pem-key-file rando-key.pem\n  " +
-		  "--org-name \"Rando Org\"\n  " +
-		  "-i 192.168.1.5 -i 192.168.1.6\n  " +
-		  "-s RandoName1 -s RandoName2",
+		Example: `
+gosplit pem --cert-file crt.pem --key-file key.pem \
+  --org-name \"Rando Org\" \
+  -i 192.168.1.5 -i 192.168.1.6 \
+  -s RandoName1 -s RandoName2`,
 		Run: runPem,
 	}
 	pemOrgName string

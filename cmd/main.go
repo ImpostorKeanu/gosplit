@@ -15,12 +15,12 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&pemCertFile, "pem-cert-file", "p", "",
+	rootCmd.PersistentFlags().StringVarP(&pemCertFile, "cert-file", "c", "",
 		"File to receive PEM certificate from")
-	rootCmd.PersistentFlags().StringVarP(&pemKeyFile, "pem-key-file", "k", "",
-		"File to read certificate key from")
-	prExit(rootCmd.MarkPersistentFlagRequired("pem-cert-file"), flagRequiredMsg)
-	prExit(rootCmd.MarkPersistentFlagRequired("pem-key-file"), flagRequiredMsg)
+	rootCmd.PersistentFlags().StringVarP(&pemKeyFile, "key-file", "k", "",
+		"File to read PEM key from")
+	prExit(rootCmd.MarkPersistentFlagRequired("cert-file"), flagRequiredMsg)
+	prExit(rootCmd.MarkPersistentFlagRequired("key-file"), flagRequiredMsg)
 	rootCmd.AddCommand(pemCmd, runCmd)
 }
 
