@@ -29,13 +29,13 @@ scenarios.
 
 # Using in Other Go Projects
 
-GoStrip was developed as a module so that it can be used in
+GoSplit was developed as a module so that it can be used in
 any Go project. Any type that implements the [Cfg interface][cfg-interface]
 can be used to run a TCP [proxy server][proxy-server], allowing
 the implementor to customize everything from TLS connection
 fingerprinting to handling of intercepted data.
 
-See the [GoStrip utility][utility-cfg] for a simple example of how
+See the [GoSplit utility][utility-cfg] for a simple example of how
 the interface can be implemented.
 
 [cfg-interface]: cfg.go
