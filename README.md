@@ -1,5 +1,11 @@
 GoSplit is a simple TLS-aware TCP proxy that can be used
-to extract cleartext data from a TLS tunnels.
+to extract cleartext data from TLS tunnels.
+
+# Warning (Intended Use)
+
+This project was developed for security research purposes (like
+[eavesarp-ng]) and is inefficient. Don't use it in production
+scenarios.
 
 # Limitations
 
@@ -11,9 +17,24 @@ to extract cleartext data from a TLS tunnels.
 - The client is presumed to send data first, and that first
   transmission should contain a TLS handshake
   - This breaks protocols where the TLS tunnel is negotiated
-    during later stages of communication, like STARTTLS
+    during later stages (STARTTLS)
   - Protocols expecting the server to send the initial data
     will result in the connection blocking until timeout
+
+# Using in Other Go Projects
+
+GoStrip was developed as a module so that it can be used in
+any Go project. Any type that implements the [Cfg interface][cfg-interface]
+can be used to run a TCP [proxy server][proxy-server], allowing
+the implementor to customize everything from TLS connection
+fingerprinting to handling of intercepted data.
+
+See the [GoStrip utility][utility-cfg] for a simple example of how
+the interface can be implemented.
+
+[cfg-interface]: cfg.go
+[proxy-server]: proxy.go
+[utility-cfg]: cmd/cfg.go
 
 # How it Works
 
@@ -50,25 +71,4 @@ GSP->>GSP: Log server data
 GSP->>C: Send server data
 ```
 
-# Warning (Intended Use)
-
-This project was developed for security research purposes (like
-[eavesarp-ng]) and is highly inefficient. Don't use it in
-production scenarios.
-
 [eavesarp-ng]: https://github.com/ImpostorKeanu/eavesarp-ng
-
-# Using in Other Go Projects
-
-GoStrip was developed as a module so that it can be used in
-any Go project. Any type that implements the [Cfg interface][cfg-interface]
-can be used to run a TCP [proxy server][proxy-server], allowing
-the implementor to customize everything from TLS connection
-fingerprinting to handling of intercepted data.
-
-See the [GoStrip utility][utility-cfg] for a simple example of how
-the interface can be implemented.
-
-[cfg-interface]: cfg.go
-[proxy-server]: proxy.go
-[utility-cfg]: cmd/cfg.go

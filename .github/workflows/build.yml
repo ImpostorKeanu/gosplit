@@ -1,0 +1,32 @@
+on:
+  push:
+    tags:
+      - '*-release'
+jobs:
+  build_gosplit:
+    name: Build GoSplit
+    runs-on: ubuntu-latest
+    container:
+      image: golang:1.23.1-bookworm
+    steps:
+      - uses: actions/checkout@v3
+      - name: build
+        id: build-gosplit
+        run: |
+          cd cmd
+          echo "building for linux"
+          GOOS=linux GOARCH=amd64 go build -buildvcs=false -o gosplit
+          echo "building for windows"
+          GOOS=windows GOARCH=amd64 go build -buildvcs=false -o gosplit.exe
+          echo "building for mac x64"
+          GOOS=darwin GOARCH=amd64 go build -buildvcs=false -o gosplit-amd64.darwin
+          echo "building for mac arm64"
+          GOOS=darwin GOARCH=amd64 go build -buildvcs=false -o gosplit-arm64.darwin
+      - name: release
+        id: issue-release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "cmd/gosplit*"
+          allowUpdates: "true"
+          body: "Releasing ${{ github.ref_name }}"
+          tag: ${{ github.ref_name }}
