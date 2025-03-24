@@ -3,7 +3,7 @@ to extract cleartext data from a TLS tunnels.
 
 # Limitations
 
-- As has been deprecated in Go's crypto library, only TLS is 
+- As SSL has been deprecated in Go's crypto library, only TLS is 
   currently supported
 - A static PEM certificate is used for all connections
   - Support for dynamically generated and cached certificates
