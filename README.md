@@ -4,8 +4,8 @@ to extract cleartext data from TLS tunnels.
 # Quick Usage
 
 1. Download a binary from the releases page.
-2. Generate a PEM using the `pem` subcommand.
-3. Start the proxy.
+2. Generate a PEM using the `pem` subcommand. (`gosplit pem --help` for examples)
+3. Start the proxy. (`gosplit run --help` for examples)
 
 # Warning (Intended Use)
 
