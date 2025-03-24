@@ -21,7 +21,7 @@ jobs:
           echo "building for mac x64"
           GOOS=darwin GOARCH=amd64 go build -buildvcs=false -o gosplit-amd64.darwin
           echo "building for mac arm64"
-          GOOS=darwin GOARCH=amd64 go build -buildvcs=false -o gosplit-arm64.darwin
+          GOOS=darwin GOARCH=arm64 go build -buildvcs=false -o gosplit-arm64.darwin
       - name: release
         id: issue-release
         uses: ncipollo/release-action@v1
