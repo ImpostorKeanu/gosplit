@@ -56,6 +56,13 @@ func (s *ProxyServer) Serve(ctx context.Context) (err error) {
 		return err
 	} else {
 		l = &proxyListener{Listener: x, cfg: cfg{Cfg: s.cfg}}
+		if o, ok := s.cfg.(ListenerAddrReceiver); ok {
+			lA, lP, _ := net.SplitHostPort(x.Addr().String())
+			o.RecvListenerAddr(ProxyListenerAddr{
+				Addr:    Addr{IP: lA, Port: lP},
+				ReqAddr: Addr{IP: pIP, Port: pPort},
+			})
+		}
 	}
 
 	pA := ProxyAddr{Addr: Addr{IP: pIP, Port: pPort}}

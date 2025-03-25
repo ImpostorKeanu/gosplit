@@ -44,6 +44,19 @@ type (
 		GetDownstreamTLSConfig(ProxyAddr, VictimAddr) (*tls.Config, error)
 	}
 
+	// ListenerAddrReceiver implementors can receive a ProxyListenerAddr after
+	// a ProxyServer has started.
+	ListenerAddrReceiver interface {
+		// RecvListenerAddr sends ProxyAddr to the implementor when a listener.
+		//
+		// This is useful when the implementor has started the listener
+		// with a port number of zero (0), which indicates that a random
+		// available port should be selected.
+		//
+		// See [net.Listen] for more information.
+		RecvListenerAddr(ProxyListenerAddr)
+	}
+
 	// LogReceiver defines methods allowing implementors to receive
 	// LogRecord objects from this module.
 	LogReceiver interface {
@@ -86,6 +99,13 @@ type (
 		// RecvDownstreamData handles data returned
 		// from downstream servers.
 		RecvDownstreamData([]byte, ConnInfo)
+	}
+
+	// ProxyListenerAddr contains Addr information for a newly created
+	// ProxyServer.
+	ProxyListenerAddr struct {
+		Addr         // ip and port that the listener is bound to
+		ReqAddr Addr // requested address sent by GetProxyAddr
 	}
 
 	// LogRecord is a standard set of fields that are send to Cfg.RecvLog.
