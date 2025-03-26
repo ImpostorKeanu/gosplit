@@ -25,10 +25,6 @@ type (
 	// - LogReceiver to handle LogRecord events
 	// - DataReceiver to handle data captured while dissecting connections
 	Cfg interface {
-		// GetProxyAddr allows implementors to determine the listening
-		// IP and port for the proxy side of the connection, which is
-		// what victims connect to.
-		GetProxyAddr() (ip string, port string, err error)
 		// GetProxyTLSConfig gets the tls config used by the proxy
 		// upon handshake detection.
 		//
@@ -42,6 +38,13 @@ type (
 		// GetDownstreamTLSConfig allows implementers to customize the
 		// TLS configuration that is used to connect to the downstream.
 		GetDownstreamTLSConfig(ProxyAddr, VictimAddr) (*tls.Config, error)
+	}
+
+	ProxyAddrGetter interface {
+		// GetProxyAddr allows implementors to determine the listening
+		// IP and port for the proxy side of the connection, which is
+		// what victims connect to.
+		GetProxyAddr() (ip string, port string, err error)
 	}
 
 	// ListenerAddrReceiver implementors can receive a ProxyListenerAddr after
@@ -95,10 +98,10 @@ type (
 	DataReceiver interface {
 		// RecvVictimData handles victim data as it passes through
 		// the proxy.
-		RecvVictimData([]byte, ConnInfo)
+		RecvVictimData(ConnInfo, []byte)
 		// RecvDownstreamData handles data returned
 		// from downstream servers.
-		RecvDownstreamData([]byte, ConnInfo)
+		RecvDownstreamData(ConnInfo, []byte)
 	}
 
 	// ProxyListenerAddr contains Addr information for a newly created

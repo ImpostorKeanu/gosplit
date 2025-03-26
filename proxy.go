@@ -10,7 +10,13 @@ import (
 	"time"
 )
 
+const (
+	ProxyAddrCtxKey CtxKey = "proxy_addr"
+)
+
 type (
+	CtxKey string
+
 	// ProxyServer proxies TCP traffic to downstream servers during AITM
 	// attacks. It exists mainly to accept and maintain a count of connections.
 	//
@@ -41,14 +47,26 @@ func NewProxyServer(cfg Cfg) *ProxyServer {
 	return &ProxyServer{cfg: cfg}
 }
 
-// Serve TCP connections on port.
+// Serve a TCP server capable of handling TLS connections.
 //
-// This method blocks until ctx is canceled.
-func (s *ProxyServer) Serve(ctx context.Context) (err error) {
+// The method obtains the IP and port the server binds to in
+// on of two ways:
+//
+// 1. ProxyAddr
+// 2. Or dynamically by having the cfg embedded in ProxyServer implement ProxyAddrGetter.
+//
+// Supplying a ProxyAddr argument takes precedence over ProxyAddrGetter.
+func (s *ProxyServer) Serve(ctx context.Context, pAddr *ProxyAddr) (err error) {
 
-	pIP, pPort, err := s.cfg.GetProxyAddr()
-	if err != nil {
-		return err
+	var pIP, pPort string
+
+	if pAddr != nil {
+		pIP = pAddr.IP
+		pPort = pAddr.Port
+	} else if v, ok := s.cfg.(ProxyAddrGetter); ok {
+		pIP, pPort, err = v.GetProxyAddr()
+	} else {
+		return errors.New("pAddr must not be nil if cfg doesn't implement ProxyAddrGetter")
 	}
 
 	var l *proxyListener

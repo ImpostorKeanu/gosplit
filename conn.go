@@ -45,7 +45,7 @@ type (
 // Note: This is the victim side of the intercepted connection.
 func (c *dataHandlerConn) Write(b []byte) (n int, err error) {
 	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
-		go dh.RecvVictimData(b, c.connInfo)
+		go dh.RecvVictimData(c.connInfo, b)
 	}
 	return c.Conn.Write(b)
 }
@@ -56,7 +56,7 @@ func (c *dataHandlerConn) Write(b []byte) (n int, err error) {
 func (c *dataHandlerConn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
-		go dh.RecvDownstreamData(b[0:n], c.connInfo)
+		go dh.RecvDownstreamData(c.connInfo, b[0:n])
 	}
 	return
 }
