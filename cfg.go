@@ -40,26 +40,6 @@ type (
 		GetDownstreamTLSConfig(ProxyAddr, VictimAddr) (*tls.Config, error)
 	}
 
-	ProxyAddrGetter interface {
-		// GetProxyAddr allows implementors to determine the listening
-		// IP and port for the proxy side of the connection, which is
-		// what victims connect to.
-		GetProxyAddr() (ip string, port string, err error)
-	}
-
-	// ListenerAddrReceiver implementors can receive a ProxyListenerAddr after
-	// a ProxyServer has started.
-	ListenerAddrReceiver interface {
-		// RecvListenerAddr sends ProxyAddr to the implementor when a listener.
-		//
-		// This is useful when the implementor has started the listener
-		// with a port number of zero (0), which indicates that a random
-		// available port should be selected.
-		//
-		// See [net.Listen] for more information.
-		RecvListenerAddr(ProxyListenerAddr)
-	}
-
 	// LogReceiver defines methods allowing implementors to receive
 	// LogRecord objects from this module.
 	LogReceiver interface {

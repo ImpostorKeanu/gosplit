@@ -56,33 +56,14 @@ func NewProxyServer(cfg Cfg) *ProxyServer {
 // 2. Or dynamically by having the cfg embedded in ProxyServer implement ProxyAddrGetter.
 //
 // Supplying a ProxyAddr argument takes precedence over ProxyAddrGetter.
-func (s *ProxyServer) Serve(ctx context.Context, pAddr *ProxyAddr) (err error) {
+func (s *ProxyServer) Serve(ctx context.Context, listener net.Listener) (err error) {
 
 	var pIP, pPort string
-
-	if pAddr != nil {
-		pIP = pAddr.IP
-		pPort = pAddr.Port
-	} else if v, ok := s.cfg.(ProxyAddrGetter); ok {
-		pIP, pPort, err = v.GetProxyAddr()
-	} else {
-		return errors.New("pAddr must not be nil if cfg doesn't implement ProxyAddrGetter")
+	if pIP, pPort, err = net.SplitHostPort(listener.Addr().String()); err != nil {
+		s.log(ErrorLogLvl, "failed to parse ip and port from listener", ProxyAddr{}, nil)
 	}
 
-	var l *proxyListener
-	if x, err := net.Listen("tcp4", net.JoinHostPort(pIP, pPort)); err != nil {
-		return err
-	} else {
-		l = &proxyListener{Listener: x, cfg: cfg{Cfg: s.cfg}}
-		if o, ok := s.cfg.(ListenerAddrReceiver); ok {
-			lA, lP, _ := net.SplitHostPort(x.Addr().String())
-			o.RecvListenerAddr(ProxyListenerAddr{
-				Addr:    Addr{IP: lA, Port: lP},
-				ReqAddr: Addr{IP: pIP, Port: pPort},
-			})
-		}
-	}
-
+	l := &proxyListener{Listener: listener, cfg: cfg{Cfg: s.cfg}}
 	pA := ProxyAddr{Addr: Addr{IP: pIP, Port: pPort}}
 
 	s.log(InfoLogLvl, "starting proxy server", pA, nil)
@@ -101,12 +82,18 @@ ctrl:
 		default:
 			c, e := l.Accept()
 
-			if e != nil && !errors.Is(e, net.ErrClosed) {
+			if errors.Is(e, net.ErrClosed) {
+				err = nil
+				s.log(InfoLogLvl, "proxy server listener closed", pA, nil)
+				break ctrl
+			} else if e != nil {
 				vA, e2 := getVictimAddr(c)
 				if e2 != nil {
 					s.log(ErrorLogLvl, fmt.Sprintf("error acquiring victim address: %s", e2), pA, nil)
+				} else {
+					s.log(ErrorLogLvl, fmt.Sprintf("error while accepting new connection: %s", e), pA, &vA)
 				}
-				s.log(ErrorLogLvl, fmt.Sprintf("error while accepting new connection: %s", e), pA, &vA)
+				break ctrl
 			}
 
 			c = &proxyConn{
@@ -117,6 +104,10 @@ ctrl:
 
 			go c.(*proxyConn).handle(ctx)
 		}
+	}
+
+	if l != nil {
+		l.Close()
 	}
 
 	l.cfg.log(nil, InfoLogLvl, "stopping proxy server")
