@@ -3,35 +3,16 @@ package gosplit
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509/pkix"
 	"encoding/json"
-	"log"
-	"os"
+	"net"
 	"testing"
 )
 
 var (
 	proxyTlsConfig, downstreamTlsConfig *tls.Config
-	tlsCert                             tls.Certificate
+	tlsCert                             *tls.Certificate
 )
-
-func init() {
-	nssF, err := os.Create("/tmp/tls_key_log.nss")
-	if err != nil {
-		// TODO
-		panic(err)
-	}
-	if tlsCert, err = tls.LoadX509KeyPair("/tmp/cert.pem", "/tmp/key.pem"); err != nil {
-		log.Fatal(err)
-	}
-	proxyTlsConfig = &tls.Config{
-		InsecureSkipVerify: true,
-		KeyLogWriter:       nssF,
-		Certificates:       []tls.Certificate{tlsCert},
-	}
-	downstreamTlsConfig = &tls.Config{
-		InsecureSkipVerify: true,
-	}
-}
 
 type (
 	Config struct{}
@@ -77,6 +58,24 @@ func (c Config) RecvDownstreamData(b []byte, _ ConnInfo) {
 }
 
 func TestProxyServer_Serve(t *testing.T) {
+
+	var err error
+	tlsCert, err = GenSelfSignedCert(pkix.Name{Organization: []string{"Test Org"}},
+		[]net.IP{net.ParseIP("127.0.0.1")},
+		[]string{"localhost"}, nil)
+	if err != nil {
+		t.Error("failed to generate certificate", err)
+		return
+	}
+
+	proxyTlsConfig = &tls.Config{
+		InsecureSkipVerify: true,
+		Certificates:       []tls.Certificate{*tlsCert},
+	}
+	downstreamTlsConfig = &tls.Config{
+		InsecureSkipVerify: true,
+	}
+
 	type fields struct {
 		cfg Cfg
 	}
@@ -84,29 +83,32 @@ func TestProxyServer_Serve(t *testing.T) {
 		ctx context.Context
 	}
 
-	ctx := context.TODO()
-	//var cancel context.CancelFunc
-	//ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
-
+	ctx, cancel := context.WithCancel(context.Background())
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{name: "test", fields: fields{cfg: Config{}}, args: args{ctx: ctx}, wantErr: false},
 	}
 
 	for _, tt := range tests {
+		var err error
 		t.Run(tt.name, func(t *testing.T) {
 			s := &ProxyServer{
 				cfg: tt.fields.cfg,
 			}
+			s.l, err = net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Error("failed to start listener for server", err)
+				return
+			}
+			t.Logf("started listener on %s", s.l.Addr().String())
 			if err := s.Serve(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("Serve() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
-	//cancel()
+	cancel()
 }
