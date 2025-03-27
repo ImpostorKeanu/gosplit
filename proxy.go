@@ -25,6 +25,7 @@ type (
 	// ConnCount can be used to determine the number of connections active
 	// with the server.
 	ProxyServer struct {
+		l         net.Listener
 		cfg       Cfg
 		connCount atomic.Int32
 	}
@@ -43,8 +44,8 @@ func (s *ProxyServer) ConnCount() int {
 }
 
 // NewProxyServer initializes a ProxyServer.
-func NewProxyServer(cfg Cfg) *ProxyServer {
-	return &ProxyServer{cfg: cfg}
+func NewProxyServer(cfg Cfg, l net.Listener) *ProxyServer {
+	return &ProxyServer{cfg: cfg, l: l}
 }
 
 // Serve a TCP server capable of handling TLS connections.
@@ -56,21 +57,21 @@ func NewProxyServer(cfg Cfg) *ProxyServer {
 // 2. Or dynamically by having the cfg embedded in ProxyServer implement ProxyAddrGetter.
 //
 // Supplying a ProxyAddr argument takes precedence over ProxyAddrGetter.
-func (s *ProxyServer) Serve(ctx context.Context, listener net.Listener) (err error) {
+func (s *ProxyServer) Serve(ctx context.Context) (err error) {
 
 	var pIP, pPort string
-	if pIP, pPort, err = net.SplitHostPort(listener.Addr().String()); err != nil {
-		s.log(ErrorLogLvl, "failed to parse ip and port from listener", ProxyAddr{}, nil)
+	if pIP, pPort, err = net.SplitHostPort(s.l.Addr().String()); err != nil {
+		s.log(ErrorLogLvl, "failed to parse ip and port from l", ProxyAddr{}, nil)
 	}
 
-	l := &proxyListener{Listener: listener, cfg: cfg{Cfg: s.cfg}}
+	l := &proxyListener{Listener: s.l, cfg: cfg{Cfg: s.cfg}}
 	pA := ProxyAddr{Addr: Addr{IP: pIP, Port: pPort}}
 
 	s.log(InfoLogLvl, "starting proxy server", pA, nil)
 
 	context.AfterFunc(ctx, func() {
 		if e := l.Close(); e != nil {
-			s.log(ErrorLogLvl, "error closing proxy server listener", pA, nil)
+			s.log(ErrorLogLvl, "error closing proxy server l", pA, nil)
 		}
 	})
 
@@ -87,12 +88,14 @@ ctrl:
 				s.log(InfoLogLvl, "proxy server listener closed", pA, nil)
 				break ctrl
 			} else if e != nil {
-				vA, e2 := getVictimAddr(c)
-				if e2 != nil {
-					s.log(ErrorLogLvl, fmt.Sprintf("error acquiring victim address: %s", e2), pA, nil)
+				e = fmt.Errorf("error accepting connection: %v", e)
+				var vA *VictimAddr
+				if v, vE := getVictimAddr(c); vE != nil {
+					e = fmt.Errorf("error getting victim address: %v (while handling: %v)", vE, e)
 				} else {
-					s.log(ErrorLogLvl, fmt.Sprintf("error while accepting new connection: %s", e), pA, &vA)
+					vA = &v
 				}
+				s.log(ErrorLogLvl, err.Error(), pA, vA)
 				break ctrl
 			}
 
@@ -107,10 +110,12 @@ ctrl:
 	}
 
 	if l != nil {
-		l.Close()
+		if err := l.Close(); err != nil {
+			s.log(ErrorLogLvl, "error closing proxy server listener", pA, nil)
+		}
 	}
 
-	l.cfg.log(nil, InfoLogLvl, "stopping proxy server")
+	l.cfg.log(nil, InfoLogLvl, "proxy server stopped")
 	return
 }
 
