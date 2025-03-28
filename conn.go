@@ -148,6 +148,15 @@ func (c *proxyConn) handle(ctx context.Context) {
 		checkHs = isHandshake
 	}
 
+	// request the downstream
+	var dA DownstreamAddr
+	if dA.IP, dA.Port, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
+		c.log(ErrorLogLvl, "no aitm downstream for connection")
+		cancel()
+		return
+	}
+	c.downstreamAddr = &dA
+
 	if peek, err := c.Conn.(*peekConn).Peek(hsLen); err != nil {
 		c.log(ErrorLogLvl, "failure checking incoming proxy connection for tls")
 		cancel()
@@ -155,7 +164,7 @@ func (c *proxyConn) handle(ctx context.Context) {
 	} else if checkHs(peek) {
 		c.log(DebugLogLvl, "upgrading proxy connection to tls")
 		var tlsCfg *tls.Config
-		tlsCfg, err = c.cfg.GetProxyTLSConfig(*c.proxyAddr, *c.victimAddr)
+		tlsCfg, err = c.cfg.GetProxyTLSConfig(*c.proxyAddr, *c.victimAddr, *c.downstreamAddr)
 		if err != nil {
 			c.log(ErrorLogLvl, "failure getting proxy tls config")
 			cancel()
@@ -168,15 +177,6 @@ func (c *proxyConn) handle(ctx context.Context) {
 	// ESTABLISH CONNECTION WITH DOWNSTREAM FOR PROXYING
 	//==================================================
 
-	// request the downstream
-	var dA DownstreamAddr
-	if dA.IP, dA.Port, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
-		c.log(ErrorLogLvl, "no aitm downstream for connection")
-		cancel()
-		return
-	}
-	c.downstreamAddr = &dA
-
 	// connect to the downstream
 	if uC, err := net.Dial("tcp4", net.JoinHostPort(dA.IP, dA.Port)); err != nil {
 		c.log(ErrorLogLvl, "error connecting to downstream")
@@ -186,7 +186,7 @@ func (c *proxyConn) handle(ctx context.Context) {
 		// upgrade to tls
 		c.log(DebugLogLvl, "upgrading downstream connection to tls")
 		var tlsCfg *tls.Config
-		tlsCfg, err = c.cfg.GetDownstreamTLSConfig(*c.proxyAddr, *c.victimAddr)
+		tlsCfg, err = c.cfg.GetDownstreamTLSConfig(*c.proxyAddr, *c.victimAddr, *c.downstreamAddr)
 		if err != nil {
 			c.log(ErrorLogLvl, "failure getting downstream tls config")
 			cancel()

@@ -30,14 +30,14 @@ type (
 		//
 		// This allows implementors to retrieve custom configurations
 		// based on victim IP and port.
-		GetProxyTLSConfig(ProxyAddr, VictimAddr) (*tls.Config, error)
+		GetProxyTLSConfig(ProxyAddr, VictimAddr, DownstreamAddr) (*tls.Config, error)
 		// GetDownstreamAddr is used to retrieve the target downstream address
 		// information. The current downstream IP address and proxy port are
 		// passed to allow the underlying type to retrieve the right downstream.
 		GetDownstreamAddr(ProxyAddr, VictimAddr) (ip string, port string, err error)
 		// GetDownstreamTLSConfig allows implementers to customize the
 		// TLS configuration that is used to connect to the downstream.
-		GetDownstreamTLSConfig(ProxyAddr, VictimAddr) (*tls.Config, error)
+		GetDownstreamTLSConfig(ProxyAddr, VictimAddr, DownstreamAddr) (*tls.Config, error)
 	}
 
 	// LogReceiver defines methods allowing implementors to receive
