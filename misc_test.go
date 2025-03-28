@@ -83,3 +83,43 @@ func TestRSAPrivKeyGenerator(t *testing.T) {
 		cancel()
 	}
 }
+
+func TestRSAPrivKeyGenerator_Generate(t *testing.T) {
+
+	// start a private key generator
+	p := RSAPrivKeyGenerator{}
+	err := p.Start(2048)
+	if err != nil {
+		t.Errorf("StartRSAPrivKeyGenerator() error = %v, wantErr %v", err, false)
+	}
+
+	// define 5 tests to run
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{name: "0", wantErr: false},
+		{name: "1", wantErr: false},
+		{name: "2", wantErr: false},
+		{name: "3", wantErr: false},
+		{name: "4", wantErr: false},
+	}
+
+	// run each test on the generator
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if p.Generate() == nil {
+				t.Errorf("StartRSAPrivKeyGenerator() p.Generate() = nil, want value")
+			}
+		})
+	}
+
+	// stop the generator to ensure that future calls return nil
+	p.Stop()
+
+	// ensure nil is returned if generate is called after stop
+	if v := p.Generate(); v != nil {
+		t.Errorf("StartRSAPrivKeyGenerator() p.Generate() = %v, want nil", v)
+	}
+
+}

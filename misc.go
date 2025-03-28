@@ -62,6 +62,14 @@ func (p *RSAPrivKeyGenerator) Start(bitLen int) (err error) {
 	return
 }
 
+// Running determines if the generator routine is currently
+// running.
+func (p *RSAPrivKeyGenerator) Running() bool {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	return p.running
+}
+
 // Stop the background routine.
 //
 // Subsequent calls to Generate will return nil values.
