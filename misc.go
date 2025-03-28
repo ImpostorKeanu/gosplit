@@ -27,7 +27,6 @@ type (
 		bitLen int   // Bit length of the private key
 		error  error // Error that occurred while generating the private key
 	}
-
 	// RSAPrivKeyGenerator is a thread safe type that conveniently manages
 	// a background generator routine started by StartRSAPrivKeyGenerator.
 	RSAPrivKeyGenerator struct {
@@ -127,7 +126,10 @@ func (r *RSAPrivKey) BitLen() int {
 }
 
 // StartRSAPrivKeyGenerator starts a distinct routine that yields RSAPrivKey
-// instances until the ctx is done.
+// instances of a specific bit length until the ctx is done.
+//
+// This helps to reduce wait time introduced by waiting for random data generation
+// when needing to generate keys of a consistent length.
 func StartRSAPrivKeyGenerator(ctx context.Context, bitLen int) (c chan *RSAPrivKey, err error) {
 	if err = checkRSABitLen(bitLen); err != nil {
 		return
@@ -154,7 +156,6 @@ func StartRSAPrivKeyGenerator(ctx context.Context, bitLen int) (c chan *RSAPrivK
 // - Not before of the time of generation
 //
 // If priv is nil, an RSAPrivKey will be generated.
-//
 //
 // Reference: https://go.dev/src/crypto/tls/generate_cert.go
 func GenSelfSignedCert(subject pkix.Name, ips []net.IP, dnsNames []string, priv *RSAPrivKey) (*tls.Certificate, error) {
