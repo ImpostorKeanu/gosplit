@@ -13,22 +13,79 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"sync"
 	"time"
 )
 
 type (
 	// RSAPrivKey wraps rsa.PrivateKey, giving us a type to carry
-	// configuration values and errors through RSAPrivKeyGenerator.
+	// configuration values and errors through StartRSAPrivKeyGenerator.
 	//
-	// Use NewRSAKey If standalone initialization is needed.
+	// Use NewRSAPrivKey If standalone initialization is needed.
 	RSAPrivKey struct {
 		*rsa.PrivateKey
 		bitLen int   // Bit length of the private key
 		error  error // Error that occurred while generating the private key
 	}
+
+	// RSAPrivKeyGenerator is a thread safe type that conveniently manages
+	// a background generator routine started by StartRSAPrivKeyGenerator.
+	RSAPrivKeyGenerator struct {
+		m       sync.RWMutex
+		c       chan *RSAPrivKey
+		cancel  context.CancelFunc
+		running bool
+	}
 )
 
-// NewRSAKey initializes a new instance and generates a new
+// Start a generator background routine.
+//
+// Subsequent calls to Generate will yield non-nil values.
+//
+// This method has no affect if the generator is already
+// running.
+//
+// The returned error originates from StartRSAPrivKeyGenerator.
+func (p *RSAPrivKeyGenerator) Start(bitLen int) (err error) {
+	p.m.Lock()
+	defer p.m.Unlock()
+	if p.running {
+		return
+	}
+	var ctx context.Context
+	ctx, p.cancel = context.WithCancel(context.Background())
+	if p.c, err = StartRSAPrivKeyGenerator(ctx, bitLen); err != nil {
+		p.cancel()
+	} else {
+		p.running = true
+	}
+	return
+}
+
+// Stop the background routine.
+//
+// Subsequent calls to Generate will return nil values.
+func (p *RSAPrivKeyGenerator) Stop() {
+	p.m.Lock()
+	p.running = false
+	p.cancel()
+	p.m.Unlock()
+}
+
+// Generate a RSAPrivKey.
+//
+// nil is returned if the Start has not been called, or if
+// Stop has been called.
+func (p *RSAPrivKeyGenerator) Generate() *RSAPrivKey {
+	p.m.RLock()
+	defer p.m.RUnlock()
+	if p.running {
+		return <-p.c
+	}
+	return nil
+}
+
+// NewRSAPrivKey initializes a new instance and generates a new
 // private key.
 //
 // Common bitLen values:
@@ -38,7 +95,7 @@ type (
 // - 3072
 // - 4092
 // - 512 (works, but less likely to be accepted by clients)
-func NewRSAKey(bitLen int) (k *RSAPrivKey) {
+func NewRSAPrivKey(bitLen int) (k *RSAPrivKey) {
 	k = &RSAPrivKey{
 		bitLen: bitLen,
 		error:  checkRSABitLen(bitLen),
@@ -61,16 +118,16 @@ func (r *RSAPrivKey) BitLen() int {
 	return r.bitLen
 }
 
-// RSAPrivKeyGenerator starts a distinct routine that yields RSAPrivKey
+// StartRSAPrivKeyGenerator starts a distinct routine that yields RSAPrivKey
 // instances until the ctx is done.
-func RSAPrivKeyGenerator(ctx context.Context, bitLen int) (c chan *RSAPrivKey, err error) {
+func StartRSAPrivKeyGenerator(ctx context.Context, bitLen int) (c chan *RSAPrivKey, err error) {
 	if err = checkRSABitLen(bitLen); err != nil {
 		return
 	}
 	c = make(chan *RSAPrivKey)
 	go func() {
 		for {
-			pK := NewRSAKey(bitLen)
+			pK := NewRSAPrivKey(bitLen)
 			select {
 			case <-ctx.Done():
 				close(c)
@@ -96,7 +153,7 @@ func GenSelfSignedCert(subject pkix.Name, ips []net.IP, dnsNames []string, priv 
 
 	var err error
 	if priv == nil {
-		if priv = NewRSAKey(1024); priv.error != nil {
+		if priv = NewRSAPrivKey(1024); priv.error != nil {
 			return nil, priv.error
 		}
 	}

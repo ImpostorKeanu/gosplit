@@ -20,8 +20,8 @@ func TestGenSelfSignedCert(t *testing.T) {
 		dnsNames: []string{"localhost"},
 	}
 	argV2 := argVals
-	if argV2.priv = NewRSAKey(100); argV2.priv.Err() != nil {
-		t.Errorf("NewRSAKey() failed: %v", argV2.priv.Err())
+	if argV2.priv = NewRSAPrivKey(100); argV2.priv.Err() != nil {
+		t.Errorf("NewRSAPrivKey() failed: %v", argV2.priv.Err())
 		return
 	}
 	tests := []struct {
@@ -66,15 +66,15 @@ func TestRSAPrivKeyGenerator(t *testing.T) {
 		var cancel context.CancelFunc
 		tt.args.ctx, cancel = context.WithCancel(context.Background())
 		t.Run(tt.name, func(t *testing.T) {
-			gotC, err := RSAPrivKeyGenerator(tt.args.ctx, tt.args.bitLen)
+			gotC, err := StartRSAPrivKeyGenerator(tt.args.ctx, tt.args.bitLen)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("RSAPrivKeyGenerator() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("StartRSAPrivKeyGenerator() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			} else if err == nil {
 				for i := 0; i < 5; i++ {
 					k := <-gotC
 					if k.Err() != nil {
-						t.Errorf("RSAPrivKeyGenerator() gotC = %v, want %v", k.Err(), tt.wantErr)
+						t.Errorf("StartRSAPrivKeyGenerator() gotC = %v, want %v", k.Err(), tt.wantErr)
 						return
 					}
 				}
