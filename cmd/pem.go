@@ -47,7 +47,7 @@ func runPem(_ *cobra.Command, _ []string) {
 		ips = append(ips, ip)
 	}
 
-	crt, err := gosplit.GenSelfSignedCert(pkix.Name{Organization: []string{pemOrgName}}, ips, pemNames, 2048)
+	crt, err := gosplit.GenSelfSignedCert(pkix.Name{Organization: []string{pemOrgName}}, ips, pemNames, gosplit.NewRSAPrivKey(2048))
 	if err != nil {
 		prExit(err, "failed to generate certificate")
 	}

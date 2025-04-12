@@ -18,20 +18,17 @@ type (
 	Config struct{}
 )
 
-func (c Config) GetProxyTLSConfig(_ ProxyAddr, _ VictimAddr) (*tls.Config, error) {
+func (c Config) GetProxyTLSConfig(_ ProxyAddr, _ VictimAddr, _ *DownstreamAddr) (*tls.Config, error) {
 	return proxyTlsConfig, nil
 }
 
-func (c Config) GetProxyAddr() (ip string, port string, err error) {
-	return "192.168.86.174", "10000", nil
-}
-
-func (c Config) GetDownstreamTLSConfig(_ ProxyAddr, _ VictimAddr) (*tls.Config, error) {
+func (c Config) GetDownstreamTLSConfig(_ ProxyAddr, _ VictimAddr, _ DownstreamAddr) (*tls.Config, error) {
 	return downstreamTlsConfig, nil
 }
 
-func (c Config) GetDownstreamAddr(_ ProxyAddr, _ VictimAddr) (ip string, port string, err error) {
-	return "192.168.86.3", "10000", nil
+func (c Config) GetDownstreamAddr(_ ProxyAddr, _ VictimAddr) (_ *DownstreamAddr, err error) {
+	//return &DownstreamAddr{Addr{IP: "192.168.86.3", Port: "10000"}}, nil
+	return nil, nil
 }
 
 func (c Config) RecvConnStart(info ConnInfo) {
@@ -49,11 +46,11 @@ func (c Config) RecvLog(fields LogRecord) {
 	println(string(b))
 }
 
-func (c Config) RecvVictimData(b []byte, _ ConnInfo) {
+func (c Config) RecvVictimData(_ ConnInfo, b []byte) {
 	println("victim data", "--->", string(b))
 }
 
-func (c Config) RecvDownstreamData(b []byte, _ ConnInfo) {
+func (c Config) RecvDownstreamData(_ ConnInfo, b []byte) {
 	println("victim data", "--->", string(b))
 }
 

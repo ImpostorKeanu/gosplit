@@ -137,7 +137,13 @@ func runServer(cmd *cobra.Command, args []string) {
 	//===============
 
 	fmt.Printf("Starting server on %s\n", listenAddr)
-	err = gosplit.NewProxyServer(cfg).Serve(context.Background())
+	var l net.Listener
+	l, err = net.Listen("tcp", listenAddr)
+	if err != nil {
+		fmt.Printf("Error listening on %s: %s\n", listenAddr, err)
+		return
+	}
+	err = gosplit.NewProxyServer(cfg, l).Serve(context.Background())
 
 	prExit(err, "error running the proxy server")
 }

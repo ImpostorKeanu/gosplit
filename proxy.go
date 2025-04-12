@@ -105,7 +105,7 @@ ctrl:
 				cfg:       l.cfg,
 				s:         s}
 
-			go c.(*proxyConn).handle(ctx)
+			go c.(*proxyConn).handle()
 		}
 	}
 

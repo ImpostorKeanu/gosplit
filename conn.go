@@ -2,7 +2,6 @@ package gosplit
 
 import (
 	"bufio"
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -73,10 +72,6 @@ func (c *proxyConn) log(lvl, msg string) {
 	c.cfg.log(c, lvl, msg)
 }
 
-func (c *proxyConn) connEnd() {
-	c.cfg.connEnd(c)
-}
-
 func (c *proxyConn) Close() (err error) {
 	if _, ok := c.Conn.(io.Closer); ok {
 		err = c.Conn.Close()
@@ -90,7 +85,7 @@ func (c *proxyConn) Close() (err error) {
 			err = fmt.Errorf("; failed to close downstream conn (%w)", e)
 		}
 	}
-	c.connEnd()
+	c.cfg.connEnd(c)
 	return
 }
 
@@ -113,25 +108,23 @@ func (c *proxyConn) close() {
 //     send first, e.g., FTP Active Mode.
 // - It assumes that the initial client connection is a TLS handshake
 //   - Proxying for SMTP servers relying upon STARTTLS will fail
-func (c *proxyConn) handle(ctx context.Context) {
+func (c *proxyConn) handle() {
 
-	// cancel ensures that the connection is closed after the blocking
-	// copy function ends
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	context.AfterFunc(ctx, c.close)
+	defer c.Close()
+	cTime := time.Now()
 
-	c.cfg.connStart(c)
+	//===================
+	// GET VICTIM ADDRESS
+	//===================
+
 	var err error
-
-	// get the victim ip and port
 	var vA VictimAddr
 	if vA, err = getVictimAddr(c.Conn); err != nil {
 		c.log(ErrorLogLvl, err.Error())
-		cancel()
 		return
 	}
 	c.victimAddr = &vA
+	c.cfg.connStart(c)
 
 	//================
 	// FINGERPRINT TLS
@@ -148,29 +141,51 @@ func (c *proxyConn) handle(ctx context.Context) {
 		checkHs = isHandshake
 	}
 
-	// request the downstream
-	var dA DownstreamAddr
-	if dA.IP, dA.Port, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
-		c.log(ErrorLogLvl, "no aitm downstream for connection")
-		cancel()
-		return
-	}
-	c.downstreamAddr = &dA
-
 	if peek, err := c.Conn.(*peekConn).Peek(hsLen); err != nil {
 		c.log(ErrorLogLvl, "failure checking incoming proxy connection for tls")
-		cancel()
 		return
 	} else if checkHs(peek) {
 		c.log(DebugLogLvl, "upgrading proxy connection to tls")
 		var tlsCfg *tls.Config
-		tlsCfg, err = c.cfg.GetProxyTLSConfig(*c.proxyAddr, *c.victimAddr, *c.downstreamAddr)
+		tlsCfg, err = c.cfg.GetProxyTLSConfig(*c.proxyAddr, *c.victimAddr, c.downstreamAddr)
 		if err != nil {
 			c.log(ErrorLogLvl, "failure getting proxy tls config")
-			cancel()
 			return
 		}
 		c.Conn = tls.Server(c.Conn, tlsCfg)
+	}
+
+	//================================
+	// GET THE DOWNSTREAM OR SEND DATA
+	//================================
+
+	if c.downstreamAddr, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
+		// error getting the downstream
+
+		c.log(ErrorLogLvl, fmt.Sprintf("failure getting downstream addr: %s", err))
+		return
+
+	} else if c.downstreamAddr == nil {
+		// nil downstream; assume victim sends first and capture data, then
+		// terminate the connection
+
+		if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
+			data := make([]byte, 4028)                                                  // TODO size configurable
+			if e := c.Conn.SetReadDeadline(time.Now().Add(5 * time.Second)); e != nil { // TODO deadline configurable
+				c.log(ErrorLogLvl, fmt.Sprintf("failed to set read deadline for victim connection: %s", e))
+			} else if n, err := c.Conn.Read(data); err != nil {
+				c.log(ErrorLogLvl, fmt.Sprintf("failed to read data from victim connection: %s", err))
+			} else {
+				dh.RecvDownstreamData(ConnInfo{
+					Time:           cTime,
+					VictimAddr:     vA,
+					ProxyAddr:      *c.proxyAddr,
+					DownstreamAddr: nil,
+				}, data[:n])
+			}
+		}
+		return
+
 	}
 
 	//==================================================
@@ -178,9 +193,8 @@ func (c *proxyConn) handle(ctx context.Context) {
 	//==================================================
 
 	// connect to the downstream
-	if uC, err := net.Dial("tcp4", net.JoinHostPort(dA.IP, dA.Port)); err != nil {
+	if uC, err := net.Dial("tcp4", net.JoinHostPort(c.downstreamAddr.IP, c.downstreamAddr.Port)); err != nil {
 		c.log(ErrorLogLvl, "error connecting to downstream")
-		cancel()
 		return
 	} else if _, ok := c.Conn.(*tls.Conn); ok {
 		// upgrade to tls
@@ -189,7 +203,6 @@ func (c *proxyConn) handle(ctx context.Context) {
 		tlsCfg, err = c.cfg.GetDownstreamTLSConfig(*c.proxyAddr, *c.victimAddr, *c.downstreamAddr)
 		if err != nil {
 			c.log(ErrorLogLvl, "failure getting downstream tls config")
-			cancel()
 			return
 		}
 		c.downstream = tls.Client(uC, tlsCfg)
@@ -201,10 +214,10 @@ func (c *proxyConn) handle(ctx context.Context) {
 		Conn: c.downstream,
 		cfg:  c.cfg,
 		connInfo: ConnInfo{
-			Time:           time.Now(),
+			Time:           cTime,
 			VictimAddr:     vA,
 			ProxyAddr:      *c.proxyAddr,
-			DownstreamAddr: dA,
+			DownstreamAddr: c.downstreamAddr,
 		},
 	}
 
@@ -227,6 +240,4 @@ func (c *proxyConn) handle(ctx context.Context) {
 		c.log(ErrorLogLvl, fmt.Sprintf("error copying data between connections (downstream to proxy): %s", err))
 	}
 	c.log(DebugLogLvl, "finished relaying data (downstream to proxy)")
-
-	cancel()
 }

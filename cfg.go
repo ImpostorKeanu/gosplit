@@ -30,11 +30,11 @@ type (
 		//
 		// This allows implementors to retrieve custom configurations
 		// based on victim IP and port.
-		GetProxyTLSConfig(ProxyAddr, VictimAddr, DownstreamAddr) (*tls.Config, error)
+		GetProxyTLSConfig(ProxyAddr, VictimAddr, *DownstreamAddr) (*tls.Config, error)
 		// GetDownstreamAddr is used to retrieve the target downstream address
 		// information. The current downstream IP address and proxy port are
 		// passed to allow the underlying type to retrieve the right downstream.
-		GetDownstreamAddr(ProxyAddr, VictimAddr) (ip string, port string, err error)
+		GetDownstreamAddr(ProxyAddr, VictimAddr) (*DownstreamAddr, error)
 		// GetDownstreamTLSConfig allows implementers to customize the
 		// TLS configuration that is used to connect to the downstream.
 		GetDownstreamTLSConfig(ProxyAddr, VictimAddr, DownstreamAddr) (*tls.Config, error)
@@ -100,10 +100,10 @@ type (
 
 	// ConnInfo adds connection information to LogRecord.
 	ConnInfo struct {
-		Time           time.Time `json:"time"`
-		VictimAddr     `json:"victim,omitempty"`
-		ProxyAddr      `json:"proxy,omitempty"`
-		DownstreamAddr `json:"downstream,omitempty"`
+		Time            time.Time `json:"time"`
+		VictimAddr      `json:"victim,omitempty"`
+		ProxyAddr       `json:"proxy,omitempty"`
+		*DownstreamAddr `json:"downstream"`
 	}
 
 	// Addr provides IP and Port fields for VictimAddr,
@@ -173,7 +173,8 @@ func (cI *ConnInfo) fill(p *proxyConn) {
 		cI.VictimAddr = *p.victimAddr
 	}
 	if p.downstreamAddr != nil {
-		cI.DownstreamAddr = *p.downstreamAddr
+		v := *p.downstreamAddr
+		cI.DownstreamAddr = &v
 	}
 	return
 }
