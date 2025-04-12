@@ -38,7 +38,7 @@ type (
 	}
 )
 
-func (c config) GetProxyTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr, _ gs.DownstreamAddr) (*tls.Config, error) {
+func (c config) GetProxyTLSConfig(_ gs.Addr, _ gs.Addr, _ *gs.Addr) (*tls.Config, error) {
 	// TODO enhance this method to generate the certificate dynamically
 	//  - generated certificates should be cached for reuse
 	if c.proxyCrt == nil {
@@ -48,15 +48,15 @@ func (c config) GetProxyTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr, _ gs.Downstre
 		Certificates: []tls.Certificate{*c.proxyCrt}}, nil
 }
 
-func (c config) GetDownstreamTLSConfig(_ gs.ProxyAddr, _ gs.VictimAddr, _ gs.DownstreamAddr) (*tls.Config, error) {
+func (c config) GetDownstreamTLSConfig(_ gs.Addr, _ gs.Addr, _ gs.Addr) (*tls.Config, error) {
 	return c.downstreamTlsCfg, nil
 }
 
-func (c config) GetDownstreamAddr(_ gs.ProxyAddr, _ gs.VictimAddr) (*gs.DownstreamAddr, error) {
-	return &gs.DownstreamAddr{Addr: gs.Addr{
+func (c config) GetDownstreamAddr(_ gs.Addr, _ gs.Addr) (*gs.Addr, error) {
+	return &gs.Addr{
 		IP:   c.downstreamIP,
 		Port: c.downstreamPort,
-	}}, nil
+	}, nil
 }
 
 func (c config) RecvLog(fields gs.LogRecord) {

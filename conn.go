@@ -15,9 +15,9 @@ type (
 	proxyConn struct {
 		net.Conn                // server connection to victim
 		downstream     net.Conn // client connection to downstream target
-		proxyAddr      *ProxyAddr
-		victimAddr     *VictimAddr
-		downstreamAddr *DownstreamAddr
+		proxyAddr      *Addr
+		victimAddr     *Addr
+		downstreamAddr *Addr
 		cfg            cfg          // provides getters for configuration data
 		s              *ProxyServer // allows handle to decrement the connection counter
 	}
@@ -118,7 +118,7 @@ func (c *proxyConn) handle() {
 	//===================
 
 	var err error
-	var vA VictimAddr
+	var vA Addr
 	if vA, err = getVictimAddr(c.Conn); err != nil {
 		c.log(ErrorLogLvl, err.Error())
 		return
@@ -141,6 +141,7 @@ func (c *proxyConn) handle() {
 		checkHs = isHandshake
 	}
 
+	c.Conn.SetReadDeadline(time.Now().Add(5 * time.Second)) // TODO deadline configurable
 	if peek, err := c.Conn.(*peekConn).Peek(hsLen); err != nil {
 		c.log(ErrorLogLvl, "failure checking incoming proxy connection for tls")
 		return
@@ -154,6 +155,7 @@ func (c *proxyConn) handle() {
 		}
 		c.Conn = tls.Server(c.Conn, tlsCfg)
 	}
+	c.Conn.SetReadDeadline(time.Time{}) // reset read deadline
 
 	//================================
 	// GET THE DOWNSTREAM OR SEND DATA
@@ -177,10 +179,10 @@ func (c *proxyConn) handle() {
 				c.log(ErrorLogLvl, fmt.Sprintf("failed to read data from victim connection: %s", err))
 			} else {
 				dh.RecvDownstreamData(ConnInfo{
-					Time:           cTime,
-					VictimAddr:     vA,
-					ProxyAddr:      *c.proxyAddr,
-					DownstreamAddr: nil,
+					Time:       cTime,
+					Victim:     vA,
+					Proxy:      *c.proxyAddr,
+					Downstream: nil,
 				}, data[:n])
 			}
 		}
@@ -214,10 +216,10 @@ func (c *proxyConn) handle() {
 		Conn: c.downstream,
 		cfg:  c.cfg,
 		connInfo: ConnInfo{
-			Time:           cTime,
-			VictimAddr:     vA,
-			ProxyAddr:      *c.proxyAddr,
-			DownstreamAddr: c.downstreamAddr,
+			Time:       cTime,
+			Victim:     vA,
+			Proxy:      *c.proxyAddr,
+			Downstream: c.downstreamAddr,
 		},
 	}
 

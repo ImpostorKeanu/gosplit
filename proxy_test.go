@@ -18,17 +18,17 @@ type (
 	Config struct{}
 )
 
-func (c Config) GetProxyTLSConfig(_ ProxyAddr, _ VictimAddr, _ *DownstreamAddr) (*tls.Config, error) {
+func (c Config) GetProxyTLSConfig(_ Addr, _ Addr, _ *Addr) (*tls.Config, error) {
 	return proxyTlsConfig, nil
 }
 
-func (c Config) GetDownstreamTLSConfig(_ ProxyAddr, _ VictimAddr, _ DownstreamAddr) (*tls.Config, error) {
+func (c Config) GetDownstreamTLSConfig(_ Addr, _ Addr, _ Addr) (*tls.Config, error) {
 	return downstreamTlsConfig, nil
 }
 
-func (c Config) GetDownstreamAddr(_ ProxyAddr, _ VictimAddr) (_ *DownstreamAddr, err error) {
-	//return &DownstreamAddr{Addr{IP: "192.168.86.3", Port: "10000"}}, nil
-	return nil, nil
+func (c Config) GetDownstreamAddr(_ Addr, _ Addr) (_ *Addr, err error) {
+	return &Addr{IP: "192.168.86.3", Port: "10000"}, nil
+	//return nil, nil
 }
 
 func (c Config) RecvConnStart(info ConnInfo) {

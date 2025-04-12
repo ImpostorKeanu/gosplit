@@ -30,14 +30,24 @@ type (
 		//
 		// This allows implementors to retrieve custom configurations
 		// based on victim IP and port.
-		GetProxyTLSConfig(ProxyAddr, VictimAddr, *DownstreamAddr) (*tls.Config, error)
+		//
+		// Note: downstream is a pointer to allow capture of initial
+		// data for connections that do not have a downstream. Implementors
+		// should account for this.
+		GetProxyTLSConfig(victim Addr, proxy Addr, downstream *Addr) (*tls.Config, error)
 		// GetDownstreamAddr is used to retrieve the target downstream address
 		// information. The current downstream IP address and proxy port are
 		// passed to allow the underlying type to retrieve the right downstream.
-		GetDownstreamAddr(ProxyAddr, VictimAddr) (*DownstreamAddr, error)
+		//
+		// Note: a pointer is returned to allow for capture of initial
+		// data for connections that do not have a downstream.
+		GetDownstreamAddr(victim Addr, proxy Addr) (*Addr, error)
 		// GetDownstreamTLSConfig allows implementers to customize the
 		// TLS configuration that is used to connect to the downstream.
-		GetDownstreamTLSConfig(ProxyAddr, VictimAddr, DownstreamAddr) (*tls.Config, error)
+		//
+		// Note: Unlike GetProxyTLSConfig and GetDownstreamAddr, a downstream
+		// is required.
+		GetDownstreamTLSConfig(victim Addr, proxy Addr, downstream Addr) (*tls.Config, error)
 	}
 
 	// LogReceiver defines methods allowing implementors to receive
@@ -87,8 +97,8 @@ type (
 	// ProxyListenerAddr contains Addr information for a newly created
 	// ProxyServer.
 	ProxyListenerAddr struct {
-		Addr         // ip and port that the listener is bound to
-		ReqAddr Addr // requested address sent by GetProxyAddr
+		Addr      // ip and port that the listener is bound to
+		Req  Addr // requested address sent by GetProxyAddr
 	}
 
 	// LogRecord is a standard set of fields that are send to Cfg.RecvLog.
@@ -100,30 +110,22 @@ type (
 
 	// ConnInfo adds connection information to LogRecord.
 	ConnInfo struct {
-		Time            time.Time `json:"time"`
-		VictimAddr      `json:"victim,omitempty"`
-		ProxyAddr       `json:"proxy,omitempty"`
-		*DownstreamAddr `json:"downstream"`
+		Time   time.Time `json:"time"`
+		Victim Addr      `json:"victim,omitempty"` // address of the victim
+		Proxy  Addr      `json:"proxy,omitempty"`  // address of the proxy
+		// Downstream address.
+		//
+		// Unlike Victim and Proxy, null values are supported to enable
+		// capture of initial traffic and then terminating the connection.
+		Downstream *Addr `json:"downstream"`
 	}
 
-	// Addr provides IP and Port fields for VictimAddr,
-	// ProxyAddr, and DownstreamAddr, which are reflected
+	// Addr provides IP and Port fields for Addr,
+	// Addr, and Addr, which are reflected
 	// in ConnInfo instances.
 	Addr struct {
 		IP   string `json:"ip,omitempty"`
 		Port string `json:"port,omitempty"`
-	}
-
-	VictimAddr struct {
-		Addr `json:",inline,omitempty"`
-	}
-
-	ProxyAddr struct {
-		Addr `json:",inline,omitempty"`
-	}
-
-	DownstreamAddr struct {
-		Addr `json:",inline,omitempty"`
 	}
 
 	// cfg embeds Cfg, giving us standardized calls to log events
@@ -133,6 +135,10 @@ type (
 		Cfg
 	}
 )
+
+func (a Addr) String() string {
+	return a.IP + ":" + a.Port
+}
 
 // log sends log records to the server's cfg.
 func (c cfg) log(conn *proxyConn, lvl, msg string) {
@@ -167,14 +173,14 @@ func (cI *ConnInfo) fill(p *proxyConn) {
 		cI.Time = time.Now()
 	}
 	if p.proxyAddr != nil {
-		cI.ProxyAddr = *p.proxyAddr
+		cI.Proxy = *p.proxyAddr
 	}
 	if p.victimAddr != nil {
-		cI.VictimAddr = *p.victimAddr
+		cI.Victim = *p.victimAddr
 	}
 	if p.downstreamAddr != nil {
 		v := *p.downstreamAddr
-		cI.DownstreamAddr = &v
+		cI.Downstream = &v
 	}
 	return
 }

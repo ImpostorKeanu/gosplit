@@ -253,7 +253,7 @@ func isHandshake(buf []byte) bool {
 	return false
 }
 
-func getVictimAddr(c net.Conn) (vA VictimAddr, err error) {
+func getVictimAddr(c net.Conn) (vA Addr, err error) {
 	if vA.IP, vA.Port, err = net.SplitHostPort(c.RemoteAddr().String()); err != nil {
 		err = fmt.Errorf("error parsing victim address information: %w", err)
 	}

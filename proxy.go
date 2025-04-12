@@ -10,10 +10,6 @@ import (
 	"time"
 )
 
-const (
-	ProxyAddrCtxKey CtxKey = "proxy_addr"
-)
-
 type (
 	CtxKey string
 
@@ -53,19 +49,19 @@ func NewProxyServer(cfg Cfg, l net.Listener) *ProxyServer {
 // The method obtains the IP and port the server binds to in
 // on of two ways:
 //
-// 1. ProxyAddr
+// 1. Addr
 // 2. Or dynamically by having the cfg embedded in ProxyServer implement ProxyAddrGetter.
 //
-// Supplying a ProxyAddr argument takes precedence over ProxyAddrGetter.
+// Supplying a Addr argument takes precedence over ProxyAddrGetter.
 func (s *ProxyServer) Serve(ctx context.Context) (err error) {
 
 	var pIP, pPort string
 	if pIP, pPort, err = net.SplitHostPort(s.l.Addr().String()); err != nil {
-		s.log(ErrorLogLvl, "failed to parse ip and port from l", ProxyAddr{}, nil)
+		s.log(ErrorLogLvl, "failed to parse ip and port from l", Addr{}, nil)
 	}
 
 	l := &proxyListener{Listener: s.l, cfg: cfg{Cfg: s.cfg}}
-	pA := ProxyAddr{Addr: Addr{IP: pIP, Port: pPort}}
+	pA := Addr{IP: pIP, Port: pPort}
 
 	s.log(InfoLogLvl, "starting proxy server", pA, nil)
 
@@ -89,7 +85,7 @@ ctrl:
 				break ctrl
 			} else if e != nil {
 				e = fmt.Errorf("error accepting connection: %v", e)
-				var vA *VictimAddr
+				var vA *Addr
 				if v, vE := getVictimAddr(c); vE != nil {
 					e = fmt.Errorf("error getting victim address: %v (while handling: %v)", vE, e)
 				} else {
@@ -119,14 +115,14 @@ ctrl:
 	return
 }
 
-func (s *ProxyServer) log(lvl, msg string, pA ProxyAddr, vA *VictimAddr) {
+func (s *ProxyServer) log(lvl, msg string, pA Addr, vA *Addr) {
 	if lr, ok := s.cfg.(LogReceiver); ok {
 		cI := ConnInfo{
-			Time:      time.Now(),
-			ProxyAddr: pA,
+			Time:  time.Now(),
+			Proxy: pA,
 		}
 		if vA != nil {
-			cI.VictimAddr = *vA
+			cI.Victim = *vA
 		}
 		lr.RecvLog(LogRecord{
 			Level:    lvl,
