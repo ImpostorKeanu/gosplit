@@ -105,7 +105,7 @@ type (
 	LogRecord struct {
 		Level    string `json:"level"`
 		Msg      string `json:"msg"`
-		ConnInfo `json:"connInfo,inline,omitempty"`
+		ConnInfo `json:"conn_info,inline,omitempty"`
 	}
 
 	// ConnInfo adds connection information to LogRecord.
