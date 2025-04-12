@@ -113,9 +113,9 @@ func (c *proxyConn) handle() {
 	defer c.Close()
 	cTime := time.Now()
 
-	//===================
-	// GET VICTIM ADDRESS
-	//===================
+	//==================================
+	// GET VICTIM & DOWNSTREAM ADDRESSES
+	//==================================
 
 	var err error
 	var vA Addr
@@ -125,6 +125,13 @@ func (c *proxyConn) handle() {
 	}
 	c.victimAddr = &vA
 	c.cfg.connStart(c)
+
+	// reminder: nil is a valid value for the downstream!
+	if c.downstreamAddr, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
+		// error getting the downstream
+		c.log(ErrorLogLvl, fmt.Sprintf("failure getting downstream addr: %s", err))
+		return
+	}
 
 	//================
 	// FINGERPRINT TLS
@@ -157,17 +164,12 @@ func (c *proxyConn) handle() {
 	}
 	c.Conn.SetReadDeadline(time.Time{}) // reset read deadline
 
-	//================================
-	// GET THE DOWNSTREAM OR SEND DATA
-	//================================
+	//======================
+	// HANDLE NIL DOWNSTREAM
+	//======================
+	// ...we just want to receive some data in this case
 
-	if c.downstreamAddr, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
-		// error getting the downstream
-
-		c.log(ErrorLogLvl, fmt.Sprintf("failure getting downstream addr: %s", err))
-		return
-
-	} else if c.downstreamAddr == nil {
+	if c.downstreamAddr == nil {
 		// nil downstream; assume victim sends first and capture data, then
 		// terminate the connection
 
