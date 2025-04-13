@@ -126,7 +126,7 @@ func (c *proxyConn) handle() {
 	c.victimAddr = &vA
 	c.cfg.connStart(c)
 
-	// reminder: nil is a valid value for the downstream!
+	// reminder: nil is a valid value!
 	if c.downstreamAddr, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
 		// error getting the downstream
 		c.log(ErrorLogLvl, fmt.Sprintf("failure getting downstream addr: %s", err))
@@ -172,22 +172,7 @@ func (c *proxyConn) handle() {
 	if c.downstreamAddr == nil {
 		// nil downstream; assume victim sends first and capture data, then
 		// terminate the connection
-
-		if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
-			data := make([]byte, 4028)                                                  // TODO size configurable
-			if e := c.Conn.SetReadDeadline(time.Now().Add(5 * time.Second)); e != nil { // TODO deadline configurable
-				c.log(ErrorLogLvl, fmt.Sprintf("failed to set read deadline for victim connection: %s", e))
-			} else if n, err := c.Conn.Read(data); err != nil {
-				c.log(ErrorLogLvl, fmt.Sprintf("failed to read data from victim connection: %s", err))
-			} else {
-				dh.RecvDownstreamData(ConnInfo{
-					Time:       cTime,
-					Victim:     vA,
-					Proxy:      *c.proxyAddr,
-					Downstream: nil,
-				}, data[:n])
-			}
-		}
+		c.dsDeadRead(cTime, vA)
 		return
 
 	}
@@ -198,6 +183,7 @@ func (c *proxyConn) handle() {
 
 	// connect to the downstream
 	if uC, err := net.Dial("tcp4", net.JoinHostPort(c.downstreamAddr.IP, c.downstreamAddr.Port)); err != nil {
+		c.dsDeadRead(cTime, vA)
 		c.log(ErrorLogLvl, "error connecting to downstream")
 		return
 	} else if _, ok := c.Conn.(*tls.Conn); ok {
@@ -244,4 +230,25 @@ func (c *proxyConn) handle() {
 		c.log(ErrorLogLvl, fmt.Sprintf("error copying data between connections (downstream to proxy): %s", err))
 	}
 	c.log(DebugLogLvl, "finished relaying data (downstream to proxy)")
+}
+
+// dsDeadRead is called when the downstream connecting to the downstream fails,
+// allowing us to capture any data sent by the victim before altogether terminating
+// the connection.
+func (c *proxyConn) dsDeadRead(connTime time.Time, vA Addr) {
+	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
+		data := make([]byte, 4028)                                                  // TODO size configurable
+		if e := c.Conn.SetReadDeadline(time.Now().Add(5 * time.Second)); e != nil { // TODO deadline configurable
+			c.log(ErrorLogLvl, fmt.Sprintf("failed to set read deadline for victim connection: %s", e))
+		} else if n, err := c.Conn.Read(data); err != nil {
+			c.log(ErrorLogLvl, fmt.Sprintf("failed to read data from victim connection: %s", err))
+		} else {
+			dh.RecvDownstreamData(ConnInfo{
+				Time:       connTime,
+				Victim:     vA,
+				Proxy:      *c.proxyAddr,
+				Downstream: nil,
+			}, data[:n])
+		}
+	}
 }
