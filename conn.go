@@ -127,7 +127,7 @@ func (c *proxyConn) handle() {
 	c.cfg.connStart(c)
 
 	// reminder: nil is a valid value!
-	if c.downstreamAddr, err = c.cfg.GetDownstreamAddr(*c.proxyAddr, *c.victimAddr); err != nil {
+	if c.downstreamAddr, err = c.cfg.GetDownstreamAddr(*c.victimAddr, *c.proxyAddr); err != nil {
 		// error getting the downstream
 		c.log(ErrorLogLvl, fmt.Sprintf("failure getting downstream addr: %s", err))
 		return
@@ -155,7 +155,7 @@ func (c *proxyConn) handle() {
 	} else if checkHs(peek) {
 		c.log(DebugLogLvl, "upgrading proxy connection to tls")
 		var tlsCfg *tls.Config
-		tlsCfg, err = c.cfg.GetProxyTLSConfig(*c.proxyAddr, *c.victimAddr, c.downstreamAddr)
+		tlsCfg, err = c.cfg.GetProxyTLSConfig(*c.victimAddr, *c.proxyAddr, c.downstreamAddr)
 		if err != nil {
 			c.log(ErrorLogLvl, "failure getting proxy tls config")
 			return
@@ -190,7 +190,7 @@ func (c *proxyConn) handle() {
 		// upgrade to tls
 		c.log(DebugLogLvl, "upgrading downstream connection to tls")
 		var tlsCfg *tls.Config
-		tlsCfg, err = c.cfg.GetDownstreamTLSConfig(*c.proxyAddr, *c.victimAddr, *c.downstreamAddr)
+		tlsCfg, err = c.cfg.GetDownstreamTLSConfig(*c.victimAddr, *c.proxyAddr, *c.downstreamAddr)
 		if err != nil {
 			c.log(ErrorLogLvl, "failure getting downstream tls config")
 			return
