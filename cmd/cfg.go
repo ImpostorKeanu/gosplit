@@ -15,7 +15,6 @@ const (
 )
 
 type (
-
 	// config implements gs.Cfg.
 	config struct {
 		proxyIP          string           // local ip the proxy server will bind to

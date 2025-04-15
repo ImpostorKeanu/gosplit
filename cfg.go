@@ -142,7 +142,7 @@ func (a Addr) String() string {
 
 // log sends log records to the server's cfg.
 func (c cfg) log(conn *proxyConn, lvl, msg string) {
-	if lr, ok := c.Cfg.(LogReceiver); ok {
+	if lr, ok := c.Cfg.(LogReceiver); ok && conn != nil {
 		var cI ConnInfo
 		cI.fill(conn)
 		lr.RecvLog(LogRecord{Level: lvl, Msg: msg, ConnInfo: cI})
