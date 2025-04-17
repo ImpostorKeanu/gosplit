@@ -29,10 +29,10 @@ type (
 		buf *bufio.Reader
 	}
 
-	// dataHandlerConn determines if cfg implements DataReceiver and passes
-	// data to the method when it does, allowing implementors to receive
+	// downstreamConn determines if cfg implements DataReceiver and passes
+	// data to methods when it does, allowing implementors to receive
 	// cleartext data passing through the proxy.
-	dataHandlerConn struct {
+	downstreamConn struct {
 		net.Conn
 		cfg      cfg
 		connInfo ConnInfo
@@ -42,7 +42,7 @@ type (
 // Write to the connection.
 //
 // Note: This is the victim side of the intercepted connection.
-func (c *dataHandlerConn) Write(b []byte) (n int, err error) {
+func (c *downstreamConn) Write(b []byte) (n int, err error) {
 	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
 		go dh.RecvVictimData(c.connInfo, b)
 	}
@@ -52,7 +52,7 @@ func (c *dataHandlerConn) Write(b []byte) (n int, err error) {
 // Read from the connection.
 //
 // Note: This is the downstream side of the intercepted connection.
-func (c *dataHandlerConn) Read(b []byte) (n int, err error) {
+func (c *downstreamConn) Read(b []byte) (n int, err error) {
 	n, err = c.Conn.Read(b)
 	if dh, ok := c.cfg.Cfg.(DataReceiver); ok {
 		go dh.RecvDownstreamData(c.connInfo, b[0:n])
@@ -164,25 +164,17 @@ func (c *proxyConn) handle() {
 	}
 	c.Conn.SetReadDeadline(time.Time{}) // reset read deadline
 
-	//======================
-	// HANDLE NIL DOWNSTREAM
-	//======================
-	// ...we just want to receive some data in this case
-
-	if c.downstreamAddr == nil {
-		// nil downstream; assume victim sends first and capture data, then
-		// terminate the connection
-		c.dsDeadRead(cTime, vA)
-		return
-
-	}
-
 	//==================================================
 	// ESTABLISH CONNECTION WITH DOWNSTREAM FOR PROXYING
 	//==================================================
 
 	// connect to the downstream
-	if uC, err := net.Dial("tcp4", net.JoinHostPort(c.downstreamAddr.IP, c.downstreamAddr.Port)); err != nil {
+	if c.downstreamAddr == nil {
+		// nil downstream; assume victim sends first and capture data, then
+		// terminate the connection
+		c.dsDeadRead(cTime, vA)
+		return
+	} else if dC, err := net.Dial("tcp4", net.JoinHostPort(c.downstreamAddr.IP, c.downstreamAddr.Port)); err != nil {
 		c.dsDeadRead(cTime, vA)
 		c.log(ErrorLogLvl, "error connecting to downstream")
 		return
@@ -195,12 +187,12 @@ func (c *proxyConn) handle() {
 			c.log(ErrorLogLvl, "failure getting downstream tls config")
 			return
 		}
-		c.downstream = tls.Client(uC, tlsCfg)
+		c.downstream = tls.Client(dC, tlsCfg)
 	} else {
-		c.downstream = uC
+		c.downstream = dC
 	}
 
-	c.downstream = &dataHandlerConn{
+	c.downstream = &downstreamConn{
 		Conn: c.downstream,
 		cfg:  c.cfg,
 		connInfo: ConnInfo{
@@ -243,7 +235,7 @@ func (c *proxyConn) dsDeadRead(connTime time.Time, vA Addr) {
 		} else if n, err := c.Conn.Read(data); err != nil {
 			c.log(ErrorLogLvl, fmt.Sprintf("failed to read data from victim connection: %s", err))
 		} else {
-			dh.RecvDownstreamData(ConnInfo{
+			dh.RecvVictimData(ConnInfo{
 				Time:       connTime,
 				Victim:     vA,
 				Proxy:      *c.proxyAddr,
